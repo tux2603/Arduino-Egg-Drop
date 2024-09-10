@@ -3,18 +3,18 @@
 #include <Wire.h>
 
 void Accelerometer::begin() {
-  Wire.begin(); // TODO: should this be done here or outside of the class?
+  Wire.begin();
 
-  // Set accelerometer to 6.66 kHz, +/- 8g, 100Hz AA
   write_register(Accelerometer::CTRL1_XL, 0xAE);
-  write_register(Accelerometer::CTRL8_XL, 0x01);
+  write_register(Accelerometer::CTRL8_XL, 0x09);
 }
 
 
 bool Accelerometer::is_ready() {
   uint8_t status;
+  uint8_t return_val;
 
-  if (!read_register(Accelerometer::STATUS, status)) {
+  if (!(return_val = read_register(Accelerometer::STATUS, status))) {
     return (status & 0x01) ? true : false;
   }
 
@@ -33,13 +33,12 @@ bool Accelerometer::read(float &x, float &y, float &z) {
     return false;
   }
 
-  x = buffer[0] * 4.0 / 32768.0;
-  y = buffer[1] * 4.0 / 32768.0;
-  z = buffer[2] * 4.0 / 32768.0;
+  x = buffer[0] * 78.5 / 32768.0;
+  y = buffer[1] * 78.5 / 32768.0;
+  z = buffer[2] * 78.5 / 32768.0;
 
   return true;
 }
-
 
 uint8_t Accelerometer::write_register(uint8_t addr, uint8_t data) {
   Wire.beginTransmission(Accelerometer::ADDR);
@@ -59,14 +58,24 @@ uint8_t Accelerometer::read_register(uint8_t addr, uint8_t *data, size_t length)
   Wire.beginTransmission(Accelerometer::ADDR);
   Wire.write(addr);
 
-  uint8_t return_val = 0x00;
+  uint8_t return_val;
 
-  if (!(return_val = Wire.endTransmission(false))) {
+  if (return_val = Wire.endTransmission(false)) {
+    Serial.print("Error reading from accelerometer (");
+    Serial.print(return_val);
+    Serial.println(")");
     return return_val;
   }
 
-  if (Wire.requestFrom(Accelerometer::ADDR, length) != length) {
-    return 4;
+  uint8_t rx_length;
+
+  if ((rx_length = Wire.requestFrom(Accelerometer::ADDR, length)) != length) {
+    Serial.print("Got unexpected number of bytes (");
+    Serial.print(length);
+    Serial.print(" expected, ");
+    Serial.print(rx_length);
+    Serial.println(" received)");
+    return 6; 
   }
 
   for (size_t i = 0; i < length; ++i) {
